@@ -1,58 +1,71 @@
-/*
-*  Tab
-*
-*  @description: 
-*  @since: 3.5.8
-*  @created: 17/01/13
-*/
-
 (function($){
+
 	
 	/*
 	*  acf/setup_fields
 	*
-	*  @description: 
-	*  @since: 3.5.8
-	*  @created: 17/01/13
+	*  run init function on all elements for this field
+	*
+	*  @type	event
+	*  @date	20/07/13
+	*
+	*  @param	{object}	e		event object
+	*  @param	{object}	el		DOM object which may contain new ACF elements
+	*  @return	N/A
 	*/
 	
-	$(document).live('acf/setup_fields', function(e, postbox){
+	$(document).on('acf/setup_fields', function(e, el){
 		
-		$(postbox).find('.acf-tab').each(function(){
+		// validate
+		if( ! $(el).find('.acf-tab').exists() )
+		{
+			return;
+		}
+		
+		
+		// init
+		$(el).find('.acf-tab').each(function(){
 			
 			// vars
-			var tab = $(this),
-				id = tab.attr('data-id'),
-				label = tab.html(),
-				postbox = tab.closest('.acf_postbox'),
-				inside = postbox.children('.inside');
-			
+			var $el		=	$(this),
+				$field	=	$el.parent(),
+				$wrap	=	$field.parent(),
+				
+				id		=	$el.attr('data-id'),
+				label 	= 	$el.html();
+				
 
-			
+
 			// only run once for each tab
-			if( tab.hasClass('acf-tab-added') )
+			if( $el.hasClass('acf-tab-added') )
 			{
 				return;
 			}
-			tab.addClass('acf-tab-added');
+			
+			$el.addClass('acf-tab-added');
 			
 			
 			// create tab group if it doesnt exist
-			if( ! inside.children('.acf-tab-group').exists() )
+			if( ! $wrap.children('.acf-tab-group').exists() )
 			{
-				inside.children('.field-tab:first').before('<ul class="hl clearfix acf-tab-group"></ul>');
+				$wrap.children('.field_type-tab:first').before('<ul class="hl clearfix acf-tab-group"></ul>');
 			}
 			
 			
 			// add tab
-			inside.children('.acf-tab-group').append('<li><a class="acf-tab-button" href="#" data-id="' + id + '">' + label + '</a></li>');
+			$wrap.children('.acf-tab-group').append('<li class="field_key-' + id + '" data-field_key="' + id + '"><a class="acf-tab-button" href="#" data-id="' + id + '">' + label + '</a></li>');
 			
 			
 		});
 		
 		
+		// trigger conditional logic
+		// this code ( acf/setup_fields ) is run after the main acf.conditional_logic.init();
+		acf.conditional_logic.change();
+		
+		
 		// trigger
-		$(postbox).find('.acf-tab-group').each(function(){
+		$(el).find('.acf-tab-group').each(function(){
 			
 			$(this).find('li:first a').trigger('click');
 			
@@ -63,48 +76,75 @@
 	
 	
 	/*
-	*  Tab group click
+	*  Events
 	*
-	*  @description: 
-	*  @since: 2.0.4
-	*  @created: 14/12/12
+	*  jQuery events for this field
+	*
+	*  @type	function
+	*  @date	1/03/2011
+	*
+	*  @param	N/A
+	*  @return	N/A
 	*/
 	
-	$('.acf-tab-button').live('click', function(){
+	$(document).on('click', '.acf-tab-button', function( e ){
+		
+		
+		e.preventDefault();
+		
 		
 		// vars
-		var a = $(this),
-			id = a.attr('data-id'),
-			ul = a.closest('ul'),
-			inside = ul.closest('.acf_postbox').children('.inside');
+		var $a		=	$(this),
+			$ul		=	$a.closest('ul'),
+			$wrap	=	$ul.parent(),
+			id		=	$a.attr('data-id');
 		
 		
 		// classes
-		ul.find('li').removeClass('active');
-		a.parent('li').addClass('active');
+		$ul.find('li').removeClass('active');
+		$a.parent('li').addClass('active');
 		
 		
 		// hide / show
-		inside.children('.field-tab').each(function(){
+		$wrap.children('.field_type-tab').each(function(){
 			
-			var tab = $(this);
+			var $tab = $(this);
 			
-			if( tab.hasClass('field-' + id) )
+			if( $tab.hasClass('field_key-' + id) )
 			{
-				tab.nextUntil('.field-tab').removeClass('acf-tab_group-hide').addClass('acf-tab_group-show');
+				$tab.nextUntil('.field_type-tab').removeClass('acf-tab_group-hide').addClass('acf-tab_group-show');
 			}
 			else
 			{
-				tab.nextUntil('.field-tab').removeClass('acf-tab_group-show').addClass('acf-tab_group-hide');
+				$tab.nextUntil('.field_type-tab').removeClass('acf-tab_group-show').addClass('acf-tab_group-hide');
 			}
 			
 		});
 
-		$(this).trigger('blur');
 		
-		return false;
+		// blur to remove dotted lines around button
+		$a.trigger('blur');
+
 		
 	});
+	
+	
+	$(document).on('acf/conditional_logic/hide', function( e, $target, item ){
 		
+		
+		// if the $target to be hidden is a tab button, lets toggle a sibling tab button
+		setTimeout(function(){
+			
+			if( $target.parent().hasClass('acf-tab-group') )
+			{
+				$target.siblings('.acf-conditional_logic-show').first().children('a').trigger('click');
+			}
+			
+		}, 0);
+		
+		
+	});
+	
+	
 
 })(jQuery);

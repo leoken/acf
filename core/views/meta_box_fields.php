@@ -1,49 +1,50 @@
 <?php
 
 /*
-*  Meta Box: Fields
+*  Meta box - fields
 *
-*  @description: This file creates the HTML for a list of fields within a Field Group
-*  @created: 23/06/12
+*  This template file is used when editing a field group and creates the interface for editing fields.
+*
+*  @type	template
+*  @date	26/01/13
 */
 
  
 // global
-global $post;
-
-
-// vars
-$fields_names = array();
+global $post, $field_types;
 
 
 // get fields
-$fields = $this->parent->get_acf_fields( $post->ID );
+$fields = apply_filters('acf/field_group/get_fields', array(), $post->ID);
 
 
 // add clone
-$fields[] = array(
+$fields[] = apply_filters('acf/load_field_defaults',  array(
 	'key' => 'field_clone',
 	'label' => __("New Field",'acf'),
-	'name' => __("new_field",'acf'),
+	'name' => 'new_field',
 	'type' => 'text',
-	'order_no' =>	1,
-	'instructions' =>	'',
-	'required' => 0,
-	'conditional_logic' => array(
-		'status' => 0,
-		'allorany' => 'all',
-		'rules' => 0
-	)
-);
+));
 
 
 // get name of all fields for use in field type drop down
-foreach($this->parent->fields as $f)
+$field_types = apply_filters('acf/registered_fields', array());
+
+
+// helper function
+function field_type_exists( $name )
 {
-	if( $f->name )
+	global $field_types;
+
+	foreach( $field_types as $category )
 	{
-		$fields_names[$f->name] = $f->title;
+		if( isset( $category[ $name ] ) )
+		{
+			return $category[ $name ];
+		}
 	}
+	
+	return false;
 }
 
 
@@ -54,17 +55,13 @@ $conditional_logic_rule = array(
 	'value' => ''
 );
 
+$error_field_type = '<b>' . __('Error', 'acf') . '</b> ' . __('Field type does not exist', 'acf');
+		
 ?>
 
 <!-- Hidden Fields -->
 <div style="display:none;">
-	<script type="text/javascript">
-	acf.text.move_to_trash = "<?php _e("Move to trash. Are you sure?",'acf'); ?>";
-	acf.text.checked = "<?php _e("checked",'acf'); ?>";
-	acf.text.conditional_no_fields = "<?php _e('No toggle fields available','acf'); ?>";
-	acf.text.flexible_content_no_fields = "<?php _e('Flexible Content requires at least 1 layout','acf'); ?>";
-	</script>
-	<input type="hidden" name="acf_field_group" value="<?php echo wp_create_nonce( 'acf_field_group' ); ?>" />
+	<input type="hidden" name="acf_nonce" value="<?php echo wp_create_nonce( 'field_group' ); ?>" />
 </div>
 <!-- / Hidden Fields -->
 
@@ -94,8 +91,11 @@ $conditional_logic_rule = array(
 	</div>
 	<!-- / No Fields Message -->
 	
-	<?php foreach($fields as $field): ?>
-	<div class="field field-<?php echo $field['type']; ?> field-<?php echo $field['key']; ?>" data-type="<?php echo $field['type']; ?>" data-id="<?php echo $field['key']; ?>">
+	<?php foreach($fields as $field): 
+		$fake_name = $field['key'];
+	?>
+	<div class="field field_type-<?php echo $field['type']; ?> field_key-<?php echo $field['key']; ?>" data-type="<?php echo $field['type']; ?>" data-id="<?php echo $field['key']; ?>">
+		<input type="hidden" class="input-field_key" name="fields[<?php echo $field['key']; ?>][key]" value="<?php echo $field['key']; ?>" />
 		<div class="field_meta">
 			<table class="acf widefat">
 				<tr>
@@ -106,13 +106,13 @@ $conditional_logic_rule = array(
 						</strong>
 						<div class="row_options">
 							<span><a class="acf_edit_field" title="<?php _e("Edit this Field",'acf'); ?>" href="javascript:;"><?php _e("Edit",'acf'); ?></a> | </span>
-							<span><a title="<?php _e("Read documentation for this field",'acf'); ?>" href="http://www.advancedcustomfields.com/docs/field-types/" target="_blank"><?php _e("Docs",'acf'); ?></a> | </span>
+							<span><a title="<?php _e("Read documentation for this field",'acf'); ?>" href="http://www.advancedcustomfields.com/resources/#field-types" target="_blank"><?php _e("Docs",'acf'); ?></a> | </span>
 							<span><a class="acf_duplicate_field" title="<?php _e("Duplicate this Field",'acf'); ?>" href="javascript:;"><?php _e("Duplicate",'acf'); ?></a> | </span>
 							<span><a class="acf_delete_field" title="<?php _e("Delete this Field",'acf'); ?>" href="javascript:;"><?php _e("Delete",'acf'); ?></a></span>
 						</div>
 					</td>
 					<td class="field_name"><?php echo $field['name']; ?></td>
-					<td class="field_type"><?php echo $fields_names[$field['type']]; ?></td>
+					<td class="field_type"><?php $l = field_type_exists( $field['type'] ); if( $l ){ echo $l; }else{ echo $error_field_type; } ?></td>
 					<td class="field_key"><?php echo $field['key']; ?></td>
 				</tr>
 			</table>
@@ -124,14 +124,14 @@ $conditional_logic_rule = array(
 					<tbody>
 						<tr class="field_label">
 							<td class="label">
-								<label><span class="required">*</span><?php _e("Field Label",'acf'); ?></label>
+								<label><?php _e("Field Label",'acf'); ?><span class="required">*</span></label>
 								<p class="description"><?php _e("This is the name which will appear on the EDIT page",'acf'); ?></p>
 							</td>
 							<td>
 								<?php 
 								do_action('acf/create_field', array(
 									'type'	=>	'text',
-									'name'	=>	'fields['.$field['key'].'][label]',
+									'name'	=>	'fields[' .$fake_name . '][label]',
 									'value'	=>	$field['label'],
 									'class'	=>	'label',
 								));
@@ -140,14 +140,14 @@ $conditional_logic_rule = array(
 						</tr>
 						<tr class="field_name">
 							<td class="label">
-								<label><span class="required">*</span><?php _e("Field Name",'acf'); ?></label>
+								<label><?php _e("Field Name",'acf'); ?><span class="required">*</span></label>
 								<p class="description"><?php _e("Single word, no spaces. Underscores and dashes allowed",'acf'); ?></p>
 							</td>
 							<td>
 								<?php 
 								do_action('acf/create_field', array(
 									'type'	=>	'text',
-									'name'	=>	'fields['.$field['key'].'][name]',
+									'name'	=>	'fields[' .$fake_name . '][name]',
 									'value'	=>	$field['name'],
 									'class'	=>	'name',
 								));
@@ -155,14 +155,16 @@ $conditional_logic_rule = array(
 							</td>
 						</tr>
 						<tr class="field_type">
-							<td class="label"><label><span class="required">*</span><?php _e("Field Type",'acf'); ?></label></td>
+							<td class="label">
+								<label><?php _e("Field Type",'acf'); ?><span class="required">*</span></label>
+							</td>
 							<td>
-								<?php 
+								<?php
 								do_action('acf/create_field', array(
 									'type'		=>	'select',
-									'name'		=>	'fields['.$field['key'].'][type]',
+									'name'		=>	'fields[' .$fake_name . '][type]',
 									'value'		=>	$field['type'],
-									'choices' 	=>	$fields_names,
+									'choices' 	=>	$field_types,
 								));
 								?>
 							</td>
@@ -174,7 +176,7 @@ $conditional_logic_rule = array(
 								<?php 
 								do_action('acf/create_field', array(
 									'type'	=>	'textarea',
-									'name'	=>	'fields['.$field['key'].'][instructions]',
+									'name'	=>	'fields[' .$fake_name . '][instructions]',
 									'value'	=>	$field['instructions'],
 								));
 								?>
@@ -186,7 +188,7 @@ $conditional_logic_rule = array(
 								<?php 
 								do_action('acf/create_field', array(
 									'type'	=>	'radio',
-									'name'	=>	'fields['.$field['key'].'][required]',
+									'name'	=>	'fields[' .$fake_name . '][required]',
 									'value'	=>	$field['required'],
 									'choices'	=>	array(
 										1	=>	__("Yes",'acf'),
@@ -199,10 +201,8 @@ $conditional_logic_rule = array(
 						</tr>
 						<?php 
 						
-						if( isset($this->parent->fields[ $field['type'] ]) )
-						{
-							$this->parent->fields[$field['type']]->create_options($field['key'], $field);
-						}
+						$field['name'] = $fake_name;
+						do_action('acf/create_field_options', $field );
 						
 						?>
 						<tr class="conditional-logic" data-field_name="<?php echo $field['key']; ?>">
